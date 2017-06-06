@@ -71,7 +71,7 @@ $grey: #757575;
         -moz-box-sizing: inherit;
         box-sizing: inherit;
     }
-    
+
     table{
         width:100%;
         display: table;
@@ -299,7 +299,7 @@ $grey: #757575;
 /* filter drop down AND column selector */
 .filter-dropdown, .mdt-column-selector{
     position: absolute;
-    z-index: 1;
+    z-index: 20;
     width: 250px;
     text-align: initial;
 
