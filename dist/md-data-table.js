@@ -82,6 +82,441 @@
 (function(){
     'use strict';
 
+    TableDataStorageFactory.$inject = ['$log', '_'];
+    function TableDataStorageFactory($log, _){
+
+        function TableDataStorageService(){
+            this.storage = [];
+            this.header = [];
+            this.customCells = {};
+        }
+
+        TableDataStorageService.prototype.addHeaderCellData = function(ops){
+            this.header.push(ops);
+        };
+
+        TableDataStorageService.prototype.addRowData = function(explicitRowId, rowArray, className){
+            if(!(rowArray instanceof Array)){
+                $log.error('`rowArray` parameter should be array');
+                return;
+            }
+
+            this.storage.push({
+                rowId: explicitRowId,
+                optionList: {
+                    selected: false,
+                    deleted: false,
+                    visible: true,
+                    className: className || false
+                },
+                data: rowArray
+            });
+        };
+
+        TableDataStorageService.prototype.getRowData = function(index){
+            if(!this.storage[index]){
+                $log.error('row is not exists at index: '+index);
+                return;
+            }
+
+            return this.storage[index].data;
+        };
+
+        TableDataStorageService.prototype.getRowOptions = function(index){
+            if(!this.storage[index]){
+                $log.error('row is not exists at index: '+index);
+                return;
+            }
+
+            return this.storage[index].optionList;
+        };
+
+        TableDataStorageService.prototype.setAllRowsSelected = function(isSelected, isPaginationEnabled){
+            if(typeof isSelected === 'undefined'){
+                $log.error('`isSelected` parameter is required');
+                return;
+            }
+
+            _.each(this.storage, function(rowData){
+                if(isPaginationEnabled) {
+                    if (rowData.optionList.visible) {
+                        rowData.optionList.selected = isSelected ? true : false;
+                    }
+                }else{
+                    rowData.optionList.selected = isSelected ? true : false;
+                }
+            });
+        };
+
+        TableDataStorageService.prototype.isAnyRowSelected = function(){
+            return _.some(this.storage, function(rowData){
+                return rowData.optionList.selected === true && rowData.optionList.deleted === false;
+            });
+        };
+
+        TableDataStorageService.prototype.getNumberOfSelectedRows = function(){
+            var res = _.countBy(this.storage, function(rowData){
+                return rowData.optionList.selected === true && rowData.optionList.deleted === false ? 'selected' : 'unselected';
+            });
+
+            return res.selected ? res.selected : 0;
+        };
+
+        TableDataStorageService.prototype.deleteSelectedRows = function(){
+            var deletedRows = [];
+
+            _.each(this.storage, function(rowData){
+                if(rowData.optionList.selected && rowData.optionList.deleted === false){
+
+                    if(rowData.rowId){
+                        deletedRows.push(rowData.rowId);
+
+                    //Fallback when no id was specified
+                    } else{
+                        deletedRows.push(rowData.data);
+                    }
+
+                    rowData.optionList.deleted = true;
+                }
+            });
+
+            return deletedRows;
+        };
+
+        TableDataStorageService.prototype.getSelectedRows = function(){
+            var selectedRows = [];
+
+            _.each(this.storage, function(rowData){
+                if(rowData.optionList.selected && rowData.optionList.deleted === false){
+
+                    if(rowData.rowId){
+                        selectedRows.push(rowData.rowId);
+
+                    //Fallback when no id was specified
+                    } else{
+                        selectedRows.push(rowData.data);
+                    }
+                }
+            });
+
+            return selectedRows;
+        };
+
+        TableDataStorageService.prototype.getSavedRowData = function(rowData){
+            var rawRowData = [];
+
+            _.each(rowData.data, function(aCell){
+                rawRowData.push(aCell.value);
+            });
+
+            return rawRowData;
+        };
+
+        return {
+            getInstance: function(){
+                return new TableDataStorageService();
+            }
+        };
+    }
+
+    angular
+        .module('mdDataTable')
+        .factory('TableDataStorageFactory', TableDataStorageFactory);
+}());
+(function(){
+    'use strict';
+
+    mdtAjaxPaginationHelperFactory.$inject = ['ColumnFilterFeature', 'ColumnSortFeature', 'PaginatorTypeProvider', '_'];
+    function mdtAjaxPaginationHelperFactory(ColumnFilterFeature, ColumnSortFeature, PaginatorTypeProvider, _){
+
+        function mdtAjaxPaginationHelper(params){
+            this.paginatorType = PaginatorTypeProvider.AJAX;
+
+            this.dataStorage = params.dataStorage;
+            this.rowOptions = params.mdtRowOptions;
+            this.paginatorFunction = params.mdtRowPaginatorFunction;
+            this.mdtRowPaginatorErrorMessage = params.mdtRowPaginatorErrorMessage || 'Ajax error during loading contents.';
+            this.mdtRowPaginatorNoResultsMessage = params.mdtRowPaginatorNoResultsMessage || 'No results.';
+            this.mdtTriggerRequest = params.mdtTriggerRequest;
+
+            if(params.paginationSetting &&
+                params.paginationSetting.hasOwnProperty('rowsPerPageValues') &&
+                params.paginationSetting.rowsPerPageValues.length > 0){
+
+                this.rowsPerPageValues = params.paginationSetting.rowsPerPageValues;
+            }else{
+                this.rowsPerPageValues = [10,20,30,50,100];
+            }
+
+            this.rowsPerPage = this.rowsPerPageValues[0];
+            this.page = 1;
+            this.totalResultCount = 0;
+            this.totalPages = 0;
+
+            this.isLoading = false;
+
+            //fetching the 1st page
+            //this.fetchPage(this.page);
+
+            //triggering ajax call manually
+            if(this.mdtTriggerRequest) {
+                params.mdtTriggerRequest({
+                    loadPageCallback: this.fetchPage.bind(this)
+                });
+            }
+        }
+
+        mdtAjaxPaginationHelper.prototype.getStartRowIndex = function(){
+            return (this.page-1) * this.rowsPerPage;
+        };
+
+        mdtAjaxPaginationHelper.prototype.getEndRowIndex = function(){
+            var lastItem = this.getStartRowIndex() + this.rowsPerPage - 1;
+
+            if(this.totalResultCount < lastItem){
+                return this.totalResultCount - 1;
+            }
+
+            return lastItem;
+        };
+
+        mdtAjaxPaginationHelper.prototype.getTotalRowsCount = function(){
+            return this.totalResultCount;
+        };
+
+        mdtAjaxPaginationHelper.prototype.getRows = function(){
+            return this.dataStorage.storage;
+        };
+
+        mdtAjaxPaginationHelper.prototype.previousPage = function(){
+            var that = this;
+            if(this.hasPreviousPage()){
+                this.fetchPage(this.page-1).then(function(){
+                    that.page--;
+                });
+            }
+        };
+
+        mdtAjaxPaginationHelper.prototype.nextPage = function(){
+            var that = this;
+            if(this.hasNextPage()){
+                this.fetchPage(this.page+1).then(function(){
+                    that.page++;
+                });
+            }
+        };
+
+        mdtAjaxPaginationHelper.prototype.getFirstPage = function(){
+            this.page = 1;
+
+            this.fetchPage(this.page);
+        };
+
+        mdtAjaxPaginationHelper.prototype.hasNextPage = function(){
+            return this.page < this.totalPages;
+        };
+
+        mdtAjaxPaginationHelper.prototype.hasPreviousPage = function(){
+            return this.page > 1;
+        };
+
+        mdtAjaxPaginationHelper.prototype.fetchPage = function(page){
+            this.isLoading = true;
+
+            var that = this;
+
+            var callbackArguments = {page: page, pageSize: this.rowsPerPage, options: {}};
+
+            ColumnFilterFeature.appendAppliedFiltersToCallbackArgument(this.dataStorage, callbackArguments);
+            ColumnSortFeature.appendSortedColumnToCallbackArgument(this.dataStorage, callbackArguments);
+
+            return this.paginatorFunction(callbackArguments)
+                .then(function(data){
+                    that.dataStorage.storage = [];
+                    that.setRawDataToStorage(that, data.results, that.rowOptions['table-row-id-key'], that.rowOptions['column-keys'], that.rowOptions);
+                    that.totalResultCount = data.totalResultCount;
+                    that.totalPages = Math.ceil(data.totalResultCount / that.rowsPerPage);
+
+                    if(that.totalResultCount == 0){
+                        that.isNoResults = true;
+                    }else{
+                        that.isNoResults = false;
+                    }
+
+                    that.isLoadError = false;
+                    that.isLoading = false;
+
+                }, function(){
+                    that.dataStorage.storage = [];
+
+                    that.isLoadError = true;
+                    that.isLoading = false;
+                    that.isNoResults = true;
+                });
+        };
+
+        mdtAjaxPaginationHelper.prototype.setRawDataToStorage = function(that, data, tableRowIdKey, columnKeys, rowOptions){
+            var rowId;
+            var columnValues = [];
+            _.each(data, function(row){
+                rowId = _.get(row, tableRowIdKey);
+                columnValues = [];
+
+                _.each(columnKeys, function(columnKey){
+                    //TODO: centralize adding column values into one place.
+                    // Duplication occurs at mdtCellDirective's link function.
+                    // Duplication in mdtTableDirective `_addRawDataToStorage` method!
+                    columnValues.push({
+                        attributes: {
+                            editableField: false
+                        },
+                        rowId: rowId,
+                        columnKey: columnKey,
+                        value: _.get(row, columnKey)
+                    });
+                });
+
+                var className = rowOptions['table-row-class-name'] ? rowOptions['table-row-class-name'](row) : false;
+
+                that.dataStorage.addRowData(rowId, columnValues, className);
+            });
+        };
+
+        mdtAjaxPaginationHelper.prototype.setRowsPerPage = function(rowsPerPage){
+            this.rowsPerPage = rowsPerPage;
+
+            this.getFirstPage();
+        };
+
+        return {
+            getInstance: function(dataStorage, isEnabled, paginatorFunction, rowOptions){
+                return new mdtAjaxPaginationHelper(dataStorage, isEnabled, paginatorFunction, rowOptions);
+            }
+        };
+    }
+
+    angular
+        .module('mdDataTable')
+        .service('mdtAjaxPaginationHelperFactory', mdtAjaxPaginationHelperFactory);
+}());
+
+(function(){
+    'use strict';
+
+    mdtLodashFactory.$inject = ['$window'];
+    function mdtLodashFactory($window){
+        if(!$window._){
+            throw Error('Lodash does not found. Please make sure you load Lodash before any source for mdDataTable');
+        }
+
+        return $window._;
+    }
+
+    angular
+        .module('mdDataTable')
+        .factory('_', mdtLodashFactory);
+}());
+(function(){
+    'use strict';
+
+    mdtPaginationHelperFactory.$inject = ['PaginatorTypeProvider', '_'];
+    function mdtPaginationHelperFactory(PaginatorTypeProvider, _){
+
+        function mdtPaginationHelper(dataStorage, paginationSetting){
+            this.paginatorType = PaginatorTypeProvider.ARRAY;
+
+            this.dataStorage = dataStorage;
+
+            if(paginationSetting &&
+                paginationSetting.hasOwnProperty('rowsPerPageValues') &&
+                paginationSetting.rowsPerPageValues.length > 0){
+
+                this.rowsPerPageValues = paginationSetting.rowsPerPageValues;
+            }else{
+                this.rowsPerPageValues = [10,20,30,50,100];
+            }
+
+            this.rowsPerPage = this.rowsPerPageValues[0];
+            this.page = 1;
+        }
+
+        mdtPaginationHelper.prototype.calculateVisibleRows = function (){
+            var that = this;
+
+            _.each(this.dataStorage.storage, function (rowData, index) {
+                if(index >= that.getStartRowIndex() && index <= that.getEndRowIndex()) {
+                    rowData.optionList.visible = true;
+                } else {
+                    rowData.optionList.visible = false;
+                }
+            });
+        };
+
+        mdtPaginationHelper.prototype.getStartRowIndex = function(){
+            return (this.page-1) * this.rowsPerPage;
+        };
+
+        mdtPaginationHelper.prototype.getEndRowIndex = function(){
+            var lastItem = this.getStartRowIndex() + this.rowsPerPage-1;
+
+            if(this.dataStorage.storage.length < lastItem){
+                return this.dataStorage.storage.length - 1;
+            }
+
+            return lastItem;
+        };
+
+        mdtPaginationHelper.prototype.getTotalRowsCount = function(){
+            return this.dataStorage.storage.length;
+        };
+
+        mdtPaginationHelper.prototype.getRows = function(){
+            this.calculateVisibleRows();
+
+            return this.dataStorage.storage;
+        };
+
+        mdtPaginationHelper.prototype.previousPage = function(){
+            if(this.hasPreviousPage()){
+                this.page--;
+            }
+        };
+
+        mdtPaginationHelper.prototype.nextPage = function(){
+            if(this.hasNextPage()){
+                this.page++;
+            }
+        };
+
+        mdtPaginationHelper.prototype.hasNextPage = function(){
+            var totalPages = Math.ceil(this.getTotalRowsCount() / this.rowsPerPage);
+
+            return this.page < totalPages;
+        };
+
+        mdtPaginationHelper.prototype.hasPreviousPage = function(){
+            return this.page > 1;
+        };
+
+        mdtPaginationHelper.prototype.setRowsPerPage = function(rowsPerPage){
+            this.rowsPerPage = rowsPerPage;
+            this.page = 1;
+        };
+
+        return {
+            getInstance: function(dataStorage, isEnabled){
+                return new mdtPaginationHelper(dataStorage, isEnabled);
+            }
+        };
+    }
+
+    angular
+        .module('mdDataTable')
+        .service('mdtPaginationHelperFactory', mdtPaginationHelperFactory);
+}());
+(function(){
+    'use strict';
+
     mdtAlternateHeadersDirective.$inject = ['_'];
     function mdtAlternateHeadersDirective(_){
         return {
@@ -394,441 +829,6 @@
         .directive('mdtTable', mdtTableDirective);
 }());
 
-(function(){
-    'use strict';
-
-    mdtAjaxPaginationHelperFactory.$inject = ['ColumnFilterFeature', 'ColumnSortFeature', 'PaginatorTypeProvider', '_'];
-    function mdtAjaxPaginationHelperFactory(ColumnFilterFeature, ColumnSortFeature, PaginatorTypeProvider, _){
-
-        function mdtAjaxPaginationHelper(params){
-            this.paginatorType = PaginatorTypeProvider.AJAX;
-
-            this.dataStorage = params.dataStorage;
-            this.rowOptions = params.mdtRowOptions;
-            this.paginatorFunction = params.mdtRowPaginatorFunction;
-            this.mdtRowPaginatorErrorMessage = params.mdtRowPaginatorErrorMessage || 'Ajax error during loading contents.';
-            this.mdtRowPaginatorNoResultsMessage = params.mdtRowPaginatorNoResultsMessage || 'No results.';
-            this.mdtTriggerRequest = params.mdtTriggerRequest;
-
-            if(params.paginationSetting &&
-                params.paginationSetting.hasOwnProperty('rowsPerPageValues') &&
-                params.paginationSetting.rowsPerPageValues.length > 0){
-
-                this.rowsPerPageValues = params.paginationSetting.rowsPerPageValues;
-            }else{
-                this.rowsPerPageValues = [10,20,30,50,100];
-            }
-
-            this.rowsPerPage = this.rowsPerPageValues[0];
-            this.page = 1;
-            this.totalResultCount = 0;
-            this.totalPages = 0;
-
-            this.isLoading = false;
-
-            //fetching the 1st page
-            //this.fetchPage(this.page);
-
-            //triggering ajax call manually
-            if(this.mdtTriggerRequest) {
-                params.mdtTriggerRequest({
-                    loadPageCallback: this.fetchPage.bind(this)
-                });
-            }
-        }
-
-        mdtAjaxPaginationHelper.prototype.getStartRowIndex = function(){
-            return (this.page-1) * this.rowsPerPage;
-        };
-
-        mdtAjaxPaginationHelper.prototype.getEndRowIndex = function(){
-            var lastItem = this.getStartRowIndex() + this.rowsPerPage - 1;
-
-            if(this.totalResultCount < lastItem){
-                return this.totalResultCount - 1;
-            }
-
-            return lastItem;
-        };
-
-        mdtAjaxPaginationHelper.prototype.getTotalRowsCount = function(){
-            return this.totalResultCount;
-        };
-
-        mdtAjaxPaginationHelper.prototype.getRows = function(){
-            return this.dataStorage.storage;
-        };
-
-        mdtAjaxPaginationHelper.prototype.previousPage = function(){
-            var that = this;
-            if(this.hasPreviousPage()){
-                this.fetchPage(this.page-1).then(function(){
-                    that.page--;
-                });
-            }
-        };
-
-        mdtAjaxPaginationHelper.prototype.nextPage = function(){
-            var that = this;
-            if(this.hasNextPage()){
-                this.fetchPage(this.page+1).then(function(){
-                    that.page++;
-                });
-            }
-        };
-
-        mdtAjaxPaginationHelper.prototype.getFirstPage = function(){
-            this.page = 1;
-
-            this.fetchPage(this.page);
-        };
-
-        mdtAjaxPaginationHelper.prototype.hasNextPage = function(){
-            return this.page < this.totalPages;
-        };
-
-        mdtAjaxPaginationHelper.prototype.hasPreviousPage = function(){
-            return this.page > 1;
-        };
-
-        mdtAjaxPaginationHelper.prototype.fetchPage = function(page){
-            this.isLoading = true;
-
-            var that = this;
-
-            var callbackArguments = {page: page, pageSize: this.rowsPerPage, options: {}};
-
-            ColumnFilterFeature.appendAppliedFiltersToCallbackArgument(this.dataStorage, callbackArguments);
-            ColumnSortFeature.appendSortedColumnToCallbackArgument(this.dataStorage, callbackArguments);
-
-            return this.paginatorFunction(callbackArguments)
-                .then(function(data){
-                    that.dataStorage.storage = [];
-                    that.setRawDataToStorage(that, data.results, that.rowOptions['table-row-id-key'], that.rowOptions['column-keys'], that.rowOptions);
-                    that.totalResultCount = data.totalResultCount;
-                    that.totalPages = Math.ceil(data.totalResultCount / that.rowsPerPage);
-
-                    if(that.totalResultCount == 0){
-                        that.isNoResults = true;
-                    }else{
-                        that.isNoResults = false;
-                    }
-
-                    that.isLoadError = false;
-                    that.isLoading = false;
-
-                }, function(){
-                    that.dataStorage.storage = [];
-
-                    that.isLoadError = true;
-                    that.isLoading = false;
-                    that.isNoResults = true;
-                });
-        };
-
-        mdtAjaxPaginationHelper.prototype.setRawDataToStorage = function(that, data, tableRowIdKey, columnKeys, rowOptions){
-            var rowId;
-            var columnValues = [];
-            _.each(data, function(row){
-                rowId = _.get(row, tableRowIdKey);
-                columnValues = [];
-
-                _.each(columnKeys, function(columnKey){
-                    //TODO: centralize adding column values into one place.
-                    // Duplication occurs at mdtCellDirective's link function.
-                    // Duplication in mdtTableDirective `_addRawDataToStorage` method!
-                    columnValues.push({
-                        attributes: {
-                            editableField: false
-                        },
-                        rowId: rowId,
-                        columnKey: columnKey,
-                        value: _.get(row, columnKey)
-                    });
-                });
-
-                var className = rowOptions['table-row-class-name'] ? rowOptions['table-row-class-name'](row) : false;
-
-                that.dataStorage.addRowData(rowId, columnValues, className);
-            });
-        };
-
-        mdtAjaxPaginationHelper.prototype.setRowsPerPage = function(rowsPerPage){
-            this.rowsPerPage = rowsPerPage;
-
-            this.getFirstPage();
-        };
-
-        return {
-            getInstance: function(dataStorage, isEnabled, paginatorFunction, rowOptions){
-                return new mdtAjaxPaginationHelper(dataStorage, isEnabled, paginatorFunction, rowOptions);
-            }
-        };
-    }
-
-    angular
-        .module('mdDataTable')
-        .service('mdtAjaxPaginationHelperFactory', mdtAjaxPaginationHelperFactory);
-}());
-
-(function(){
-    'use strict';
-
-    mdtLodashFactory.$inject = ['$window'];
-    function mdtLodashFactory($window){
-        if(!$window._){
-            throw Error('Lodash does not found. Please make sure you load Lodash before any source for mdDataTable');
-        }
-
-        return $window._;
-    }
-
-    angular
-        .module('mdDataTable')
-        .factory('_', mdtLodashFactory);
-}());
-(function(){
-    'use strict';
-
-    mdtPaginationHelperFactory.$inject = ['PaginatorTypeProvider', '_'];
-    function mdtPaginationHelperFactory(PaginatorTypeProvider, _){
-
-        function mdtPaginationHelper(dataStorage, paginationSetting){
-            this.paginatorType = PaginatorTypeProvider.ARRAY;
-
-            this.dataStorage = dataStorage;
-
-            if(paginationSetting &&
-                paginationSetting.hasOwnProperty('rowsPerPageValues') &&
-                paginationSetting.rowsPerPageValues.length > 0){
-
-                this.rowsPerPageValues = paginationSetting.rowsPerPageValues;
-            }else{
-                this.rowsPerPageValues = [10,20,30,50,100];
-            }
-
-            this.rowsPerPage = this.rowsPerPageValues[0];
-            this.page = 1;
-        }
-
-        mdtPaginationHelper.prototype.calculateVisibleRows = function (){
-            var that = this;
-
-            _.each(this.dataStorage.storage, function (rowData, index) {
-                if(index >= that.getStartRowIndex() && index <= that.getEndRowIndex()) {
-                    rowData.optionList.visible = true;
-                } else {
-                    rowData.optionList.visible = false;
-                }
-            });
-        };
-
-        mdtPaginationHelper.prototype.getStartRowIndex = function(){
-            return (this.page-1) * this.rowsPerPage;
-        };
-
-        mdtPaginationHelper.prototype.getEndRowIndex = function(){
-            var lastItem = this.getStartRowIndex() + this.rowsPerPage-1;
-
-            if(this.dataStorage.storage.length < lastItem){
-                return this.dataStorage.storage.length - 1;
-            }
-
-            return lastItem;
-        };
-
-        mdtPaginationHelper.prototype.getTotalRowsCount = function(){
-            return this.dataStorage.storage.length;
-        };
-
-        mdtPaginationHelper.prototype.getRows = function(){
-            this.calculateVisibleRows();
-
-            return this.dataStorage.storage;
-        };
-
-        mdtPaginationHelper.prototype.previousPage = function(){
-            if(this.hasPreviousPage()){
-                this.page--;
-            }
-        };
-
-        mdtPaginationHelper.prototype.nextPage = function(){
-            if(this.hasNextPage()){
-                this.page++;
-            }
-        };
-
-        mdtPaginationHelper.prototype.hasNextPage = function(){
-            var totalPages = Math.ceil(this.getTotalRowsCount() / this.rowsPerPage);
-
-            return this.page < totalPages;
-        };
-
-        mdtPaginationHelper.prototype.hasPreviousPage = function(){
-            return this.page > 1;
-        };
-
-        mdtPaginationHelper.prototype.setRowsPerPage = function(rowsPerPage){
-            this.rowsPerPage = rowsPerPage;
-            this.page = 1;
-        };
-
-        return {
-            getInstance: function(dataStorage, isEnabled){
-                return new mdtPaginationHelper(dataStorage, isEnabled);
-            }
-        };
-    }
-
-    angular
-        .module('mdDataTable')
-        .service('mdtPaginationHelperFactory', mdtPaginationHelperFactory);
-}());
-(function(){
-    'use strict';
-
-    TableDataStorageFactory.$inject = ['$log', '_'];
-    function TableDataStorageFactory($log, _){
-
-        function TableDataStorageService(){
-            this.storage = [];
-            this.header = [];
-            this.customCells = {};
-        }
-
-        TableDataStorageService.prototype.addHeaderCellData = function(ops){
-            this.header.push(ops);
-        };
-
-        TableDataStorageService.prototype.addRowData = function(explicitRowId, rowArray, className){
-            if(!(rowArray instanceof Array)){
-                $log.error('`rowArray` parameter should be array');
-                return;
-            }
-
-            this.storage.push({
-                rowId: explicitRowId,
-                optionList: {
-                    selected: false,
-                    deleted: false,
-                    visible: true,
-                    className: className || false
-                },
-                data: rowArray
-            });
-        };
-
-        TableDataStorageService.prototype.getRowData = function(index){
-            if(!this.storage[index]){
-                $log.error('row is not exists at index: '+index);
-                return;
-            }
-
-            return this.storage[index].data;
-        };
-
-        TableDataStorageService.prototype.getRowOptions = function(index){
-            if(!this.storage[index]){
-                $log.error('row is not exists at index: '+index);
-                return;
-            }
-
-            return this.storage[index].optionList;
-        };
-
-        TableDataStorageService.prototype.setAllRowsSelected = function(isSelected, isPaginationEnabled){
-            if(typeof isSelected === 'undefined'){
-                $log.error('`isSelected` parameter is required');
-                return;
-            }
-
-            _.each(this.storage, function(rowData){
-                if(isPaginationEnabled) {
-                    if (rowData.optionList.visible) {
-                        rowData.optionList.selected = isSelected ? true : false;
-                    }
-                }else{
-                    rowData.optionList.selected = isSelected ? true : false;
-                }
-            });
-        };
-
-        TableDataStorageService.prototype.isAnyRowSelected = function(){
-            return _.some(this.storage, function(rowData){
-                return rowData.optionList.selected === true && rowData.optionList.deleted === false;
-            });
-        };
-
-        TableDataStorageService.prototype.getNumberOfSelectedRows = function(){
-            var res = _.countBy(this.storage, function(rowData){
-                return rowData.optionList.selected === true && rowData.optionList.deleted === false ? 'selected' : 'unselected';
-            });
-
-            return res.selected ? res.selected : 0;
-        };
-
-        TableDataStorageService.prototype.deleteSelectedRows = function(){
-            var deletedRows = [];
-
-            _.each(this.storage, function(rowData){
-                if(rowData.optionList.selected && rowData.optionList.deleted === false){
-
-                    if(rowData.rowId){
-                        deletedRows.push(rowData.rowId);
-
-                    //Fallback when no id was specified
-                    } else{
-                        deletedRows.push(rowData.data);
-                    }
-
-                    rowData.optionList.deleted = true;
-                }
-            });
-
-            return deletedRows;
-        };
-
-        TableDataStorageService.prototype.getSelectedRows = function(){
-            var selectedRows = [];
-
-            _.each(this.storage, function(rowData){
-                if(rowData.optionList.selected && rowData.optionList.deleted === false){
-
-                    if(rowData.rowId){
-                        selectedRows.push(rowData.rowId);
-
-                    //Fallback when no id was specified
-                    } else{
-                        selectedRows.push(rowData.data);
-                    }
-                }
-            });
-
-            return selectedRows;
-        };
-
-        TableDataStorageService.prototype.getSavedRowData = function(rowData){
-            var rawRowData = [];
-
-            _.each(rowData.data, function(aCell){
-                rawRowData.push(aCell.value);
-            });
-
-            return rawRowData;
-        };
-
-        return {
-            getInstance: function(){
-                return new TableDataStorageService();
-            }
-        };
-    }
-
-    angular
-        .module('mdDataTable')
-        .factory('TableDataStorageFactory', TableDataStorageFactory);
-}());
 (function(){
     'use strict';
 
