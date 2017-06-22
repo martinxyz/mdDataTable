@@ -9,6 +9,17 @@
     </md-button>
 -->
 
+    <!-- customActionsFeature -->
+    <md-button ng-repeat="action in $parent.mdtActions"
+               class="md-icon-button"
+               aria-label="action.aria"
+               ng-click="action.callback()"
+               ng-disabled="action.isDisabled()">
+        <md-icon ng-bind="action.icon"
+                 action-name="{{action.icon}}"
+                 style="font-size: 24px"></md-icon>
+    </md-button>
+
     <!-- columnSelectorFeature -->
     <md-button class="md-icon-button md-primary mdt-column-chooser-button"
                aria-label="Choose columns"
