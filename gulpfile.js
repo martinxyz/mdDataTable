@@ -27,6 +27,10 @@ gulp.task('build', function(next) {
     runSequence('test', 'copy', 'templates', 'compass', 'create index.html', 'ngdocs', next);
 });
 
+gulp.task('distWithoutTest', function(next) {
+    runSequence('copy', 'templates', 'compass', 'create index.html', 'ngdocs', 'dist', next);
+});
+
 gulp.task('ci', function(next) {
     runSequence('lint', 'test', next);
 });

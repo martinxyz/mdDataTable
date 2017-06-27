@@ -1,6 +1,9 @@
-<div class="mdt-header" layout="row" layout-align="start center" ng-show="isTableCardEnabled">
+<div class="mdt-header"
+     layout="row"
+     layout-align="start center"
+     ng-show="isTableCardEnabled">
     <span flex>{{tableCard.title}}</span>
-<!--
+    <!--
     <md-button class="md-icon-button md-primary" aria-label="Filter">
         <ng-md-icon icon="filter_list" size="24"></ng-md-icon>
     </md-button>
@@ -20,12 +23,35 @@
                  style="font-size: 24px"></md-icon>
     </md-button>
 
+    <md-menu ng-if="$parent.mdtAdditionalActions">
+        <md-button ng-click="$mdMenu.open($event)"
+                   class="md-icon-button"
+                   aria-label="Additional actions">
+            <md-icon ng-bind="'more_vert'"
+                     action-name="{{action.icon}}"
+                     style="font-size: 24px"></md-icon>
+        </md-button>
+        <md-menu-content>
+            <md-menu-item ng-repeat="action in $parent.mdtAdditionalActions">
+                <md-button ng-click="action.callback()"
+                           ng-href="{{action.getActionHref()}}"
+                           download="{{action.getActionDownloadFileName()}}"
+                           action-name="action.label"
+                           ng-disabled="action.isActionDisabled()">
+                        <md-icon ng-bind="action.icon"
+                                 style="font-size: 24px"></md-icon>{{action.label}}
+                </md-button>
+            </md-menu-item>
+        </md-menu-content>
+    </md-menu>
+
     <!-- columnSelectorFeature -->
     <md-button class="md-icon-button md-primary mdt-column-chooser-button"
                aria-label="Choose columns"
                ng-if="::columnSelectorFeature.isEnabled"
                ng-click="handleColumnChooserButtonClick()">
-        <ng-md-icon icon="settings" size="24"></ng-md-icon>
+        <ng-md-icon icon="settings"
+                    size="24"></ng-md-icon>
     </md-button>
 
     <mdt-column-selector ng-if="columnSelectorFeature.isEnabled && columnSelectorFeature.isActive"></mdt-column-selector>
