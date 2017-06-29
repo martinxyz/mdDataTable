@@ -38,8 +38,9 @@
                            download="{{action.getActionDownloadFileName()}}"
                            action-name="action.label"
                            ng-disabled="action.isActionDisabled()">
-                        <md-icon ng-bind="action.icon"
-                                 style="font-size: 24px"></md-icon>{{action.label}}
+                    <md-icon ng-bind="action.icon"
+                             style="font-size: 24px"></md-icon>
+                    <span ng-bind="action.label"></span>
                 </md-button>
             </md-menu-item>
         </md-menu-content>
