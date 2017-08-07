@@ -23,7 +23,7 @@
                  style="font-size: 24px"></md-icon>
     </md-button>
 
-    <md-menu ng-if="$parent.mdtAdditionalActions">
+    <md-menu ng-if="$parent.mdtAdditionalActions.length > 0">
         <md-button ng-click="$mdMenu.open($event)"
                    class="md-icon-button"
                    aria-label="Additional actions">
