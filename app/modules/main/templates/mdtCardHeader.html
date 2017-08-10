@@ -2,7 +2,10 @@
      layout="row"
      layout-align="start center"
      ng-show="isTableCardEnabled">
-    <span flex>{{tableCard.title}}</span>
+    <span flex>
+      <a ui-sref="^"><md-icon ng-bind="'close'" style="font-size: 24px"></md-icon></a>
+      {{tableCard.title}}
+    </span>
     <!--
     <md-button class="md-icon-button md-primary" aria-label="Filter">
         <ng-md-icon icon="filter_list" size="24"></ng-md-icon>
