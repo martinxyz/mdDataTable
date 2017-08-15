@@ -2,8 +2,11 @@
      layout="row"
      layout-align="start center"
      ng-show="isTableCardEnabled">
+    <a ui-sref="^">
+        <md-icon ng-bind="'close'"
+                 style="font-size: 24px"></md-icon>
+    </a>
     <span flex>
-      <a ui-sref="^"><md-icon ng-bind="'close'" style="font-size: 24px"></md-icon></a>
       {{tableCard.title}}
     </span>
     <!--
