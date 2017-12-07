@@ -22,6 +22,11 @@
                 if($scope.tableCard && $scope.tableCard.visible !== false){
                     $scope.isTableCardEnabled = true;
                 }
+
+                $scope.delete = function() {
+                    var selectedItemIds = $scope.$parent.dataStorage.getSelectedRows();
+                    $scope.$parent.mdtActions.delete(selectedItemIds);
+                }
             }
         };
     }

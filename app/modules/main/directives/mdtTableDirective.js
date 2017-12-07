@@ -141,8 +141,7 @@
                 mdtTriggerRequest: '&?',
                 mdtTranslations: '=?',
                 mdtLoadingIndicator: '=?',
-                mdtActions: '=?',
-                mdtAdditionalActions: '=?'
+                mdtActions: '=?'
             },
             controller: function mdtTable($scope){
                 var vm = this;
@@ -158,6 +157,15 @@
                 ColumnSelectorFeature.initFeature($scope, vm);
 
                 _processData();
+
+                $scope.rowClicked = function(rowData) {
+                    if($scope.isSelectableRowsEnabled()) {
+                        rowData.optionList.selected = !rowData.optionList.selected;
+                    } else if($scope.mdtActions.see){
+                        var id = rowData.rowId;
+                        $scope.mdtActions.see(id);
+                    }
+                };
 
                 // initialization of the storage service
                 function _initTableStorage(){

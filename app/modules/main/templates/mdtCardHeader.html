@@ -2,32 +2,34 @@
      layout="row"
      layout-align="start center"
      ng-show="isTableCardEnabled">
+    <span>
+      {{tableCard.title}}
+    </span>
+
+    <md-button class="md-icon-button"
+               ng-if="$parent.mdtActions.add"
+               ng-click="$parent.mdtActions.add()">
+        <md-icon style="font-size: 24px">add</md-icon>
+    </md-button>
+
+    <div flex></div>
+
+    <md-button class="md-icon-button md-raised md-primary"
+               ng-if="$parent.isSelectableRowsEnabled()"
+               ng-disabled="!$parent.dataStorage.isAnyRowSelected()"
+               ng-click="delete()">
+        <md-icon style="font-size: 24px">delete</md-icon>
+    </md-button>
+    <md-button class="md-icon-button"
+               ng-if="$parent.mdtActions.delete"
+               ng-class="{'md-raised':$parent.isSelectableRowsEnabled()}"
+               ng-click="$parent.toggleSelectableRows()">
+        <md-icon style="font-size: 24px">settings</md-icon>
+    </md-button>
     <a ui-sref="^">
         <md-icon ng-bind="'close'"
                  style="font-size: 24px"></md-icon>
     </a>
-    <span flex>
-      {{tableCard.title}}
-    </span>
-    <!--
-    <md-button class="md-icon-button md-primary" aria-label="Filter">
-        <ng-md-icon icon="filter_list" size="24"></ng-md-icon>
-    </md-button>
-    <md-button class="md-icon-button md-primary" aria-label="More options">
-        <ng-md-icon icon="more_vert" size="24"></ng-md-icon>
-    </md-button>
--->
-
-    <!-- customActionsFeature -->
-    <md-button ng-repeat="action in $parent.mdtActions"
-               class="md-icon-button"
-               aria-label="action.aria"
-               ng-click="action.callback()"
-               ng-disabled="action.isDisabled()">
-        <md-icon ng-bind="action.icon"
-                 action-name="{{action.icon}}"
-                 style="font-size: 24px"></md-icon>
-    </md-button>
 
     <md-menu ng-if="$parent.mdtAdditionalActions.length > 0">
         <md-button ng-click="$mdMenu.open($event)"

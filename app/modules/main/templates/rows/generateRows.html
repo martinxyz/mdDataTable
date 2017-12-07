@@ -3,15 +3,20 @@
     ng-class="{'selectedRow': rowData.optionList.selected, '{{rowData.optionList.className}}': rowData.optionList.className }"
     ng-show="(isPaginationEnabled() === false || rowData.optionList.visible === true) && rowData.optionList.deleted === false">
 
-    <td class="checkboxCell" ng-show="selectableRows"
+    <td class="checkboxCell no-outline" ng-show="isSelectableRowsEnabled()"
         ng-include="'/main/templates/cells/generateCheckboxCell.html'"></td>
 
-    <td class="column"
+    <td class="checkboxCell no-outline"
+        ng-include="'/main/templates/cells/generateEntityIconCell.html'"
+        ng-click="rowClicked(rowData)"></td>
+
+    <td class="column no-outline"
         ng-repeat="cellData in rowData.data track by $index"
         ng-if="!dataStorage.header[$index].columnSelectorFeature || dataStorage.header[$index].columnSelectorFeature.isVisible"
         mdt-add-align-class="dataStorage.header[$index].alignRule"
         style="position:relative;"
-        ng-include src="'/main/templates/cells/generateCell.html'">
+        ng-include src="'/main/templates/cells/generateCell.html'"
+        ng-click="rowClicked(rowData)">
         <!-- generate cell content -->
     </td>
 </tr>
