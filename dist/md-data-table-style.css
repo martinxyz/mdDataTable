@@ -15,6 +15,9 @@
   /* filter drop down */
   /* TH Select outline color & caret */
 }
+.mdtTableContainer .tbodyTrRow {
+  cursor: pointer;
+}
 .mdtTableContainer .mdtTable {
   position: relative;
 }

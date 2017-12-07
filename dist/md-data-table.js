@@ -252,8 +252,7 @@
                 mdtTriggerRequest: '&?',
                 mdtTranslations: '=?',
                 mdtLoadingIndicator: '=?',
-                mdtActions: '=?',
-                mdtAdditionalActions: '=?'
+                mdtActions: '=?'
             },
             controller: ['$scope', function mdtTable($scope){
                 var vm = this;
@@ -269,6 +268,15 @@
                 ColumnSelectorFeature.initFeature($scope, vm);
 
                 _processData();
+
+                $scope.rowClicked = function(rowData) {
+                    if($scope.isSelectableRowsEnabled()) {
+                        rowData.optionList.selected = !rowData.optionList.selected;
+                    } else if($scope.mdtActions.see){
+                        var id = rowData.rowId;
+                        $scope.mdtActions.see(id);
+                    }
+                };
 
                 // initialization of the storage service
                 function _initTableStorage(){
@@ -895,6 +903,8 @@
             this.ctrl = params.ctrl;
 
             this.$scope.onCheckboxChange = _.bind(this.onCheckboxChange, this);
+            this.$scope.toggleSelectableRows = _.bind(this.toggleSelectableRows, this);
+            this.$scope.isSelectableRowsEnabled = _.bind(this.isSelectableRowsEnabled, this);
         }
 
         SelectableRowsFeature.prototype.onCheckboxChange = function(){
@@ -908,6 +918,23 @@
             },0);
         };
 
+        SelectableRowsFeature.prototype.toggleSelectableRows = function() {
+            var that = this;
+
+            if(that.selectableRowsEnabled) {
+                that.ctrl.dataStorage.setAllRowsSelected(false);
+                that.selectableRowsEnabled = false;
+            } else {
+                that.selectableRowsEnabled = true;
+            }
+        }
+
+        SelectableRowsFeature.prototype.isSelectableRowsEnabled = function() {
+            var that = this;
+
+            return that.selectableRowsEnabled;
+        }
+
         return {
             getInstance: function(params){
                 return new SelectableRowsFeature(params);
@@ -919,6 +946,7 @@
         .module('mdDataTable')
         .service('SelectableRowsFeature', SelectableRowsFeatureFactory);
 }());
+
 (function(){
     'use strict';
 
@@ -1514,6 +1542,11 @@
                 if($scope.tableCard && $scope.tableCard.visible !== false){
                     $scope.isTableCardEnabled = true;
                 }
+
+                $scope.delete = function() {
+                    var selectedItemIds = $scope.$parent.dataStorage.getSelectedRows();
+                    $scope.$parent.mdtActions.delete(selectedItemIds);
+                }
             }
         };
     }
@@ -1522,6 +1555,7 @@
         .module('mdDataTable')
         .directive('mdtCardHeader', mdtCardHeaderDirective);
 }());
+
 (function(){
     'use strict';
 
