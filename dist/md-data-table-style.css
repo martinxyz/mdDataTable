@@ -140,7 +140,7 @@
   overflow: hidden;
 }
 .mdtTableContainer .checkboxCell {
-  width: 18px;
+  width: 46px;
   /*the next cell should not have just 24px padding */
 }
 .mdtTableContainer .checkboxCell md-checkbox {
