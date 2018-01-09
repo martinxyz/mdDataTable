@@ -1,4 +1,4 @@
-<md-content class="mdtTableContainer md-whiteframe-z1" ng-cloak>
+<md-content class="mdtTableContainer md-whiteframe-z1" ng-cloak layout="column">
     <!-- table card -->
     <mdt-card-header ng-hide="alternateHeaders && dataStorage.isAnyRowSelected()"></mdt-card-header>
 
@@ -14,6 +14,8 @@
 
         <ng-include src="'/main/templates/generateTable.html'"></ng-include>
     </md-content>
+
+    <div flex class="spacer"></div>
 
     <!-- table card -->
     <mdt-card-footer></mdt-card-footer>

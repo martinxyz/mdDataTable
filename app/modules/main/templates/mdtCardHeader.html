@@ -14,14 +14,21 @@
 
     <div flex></div>
 
+    <md-button ng-if="$parent.isSelectableRowsEnabled()"
+               ng-repeat="action in $parent.mdtActions.selectionActions"
+               ng-disabled="!$parent.dataStorage.isAnyRowSelected()"
+               ng-click="action.callback($parent.dataStorage.getSelectedRows())"
+               class="md-icon-button md-raised md-primary">
+        <md-icon style="font-size: 24px">{{action.icon}}</md-icon>
+    </md-button>
     <md-button class="md-icon-button md-raised md-primary"
-               ng-if="$parent.isSelectableRowsEnabled()"
+               ng-if="$parent.isSelectableRowsEnabled() && $parent.mdtActions.delete"
                ng-disabled="!$parent.dataStorage.isAnyRowSelected()"
                ng-click="delete()">
         <md-icon style="font-size: 24px">delete</md-icon>
     </md-button>
     <md-button class="md-icon-button"
-               ng-if="$parent.mdtActions.delete"
+               ng-if="$parent.mdtActions.delete || $parent.mdtActions.selectionActions"
                ng-class="{'md-raised':$parent.isSelectableRowsEnabled()}"
                ng-click="$parent.toggleSelectableRows()">
         <md-icon style="font-size: 24px">settings</md-icon>

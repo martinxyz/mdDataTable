@@ -1,6 +1,7 @@
 .mdtTableContainer {
   position: relative;
   overflow: visible;
+  height: 100%;
   font-size: 15px;
   /* 12sp Roboto Medium, 54% black */
   /* optional animation of sort icons: add class 'animate-sort-icon' to mdt-header-row to activate animation */
@@ -358,4 +359,9 @@
   overflow: hidden;
   -ms-text-overflow: ellipsis;
   text-overflow: ellipsis;
+}
+
+.spacer {
+  background-color: #eee;
+  border-bottom: solid 1px #DDDDDD;
 }
