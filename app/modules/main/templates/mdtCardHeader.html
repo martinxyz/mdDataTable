@@ -12,6 +12,12 @@
         <md-icon style="font-size: 24px">add</md-icon>
     </md-button>
 
+    <md-button class="md-icon-button"
+               ng-repeat="action in $parent.mdtActions.addActions"
+               ng-click="action.callback()">
+        <md-icon style="font-size: 24px">{{action.icon}}</md-icon>
+    </md-button>
+
     <div flex></div>
 
     <md-button ng-if="$parent.isSelectableRowsEnabled()"
